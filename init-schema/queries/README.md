@@ -365,4 +365,70 @@ Prethodne analize su bile fokusirane isključivo na primaoce, što nam je otkril
 
  **Cilj upita:** Grupisanje podataka isključivo po pošiljaocu, uz praćenje broja jedinstvenih primalaca, kako bi se precizno utvrdilo da li u sistemu postoji obrazac povezanih, ponovljenih napada sa iste tačke, ili je u pitanju strogi model (jednokratni pošiljalac na jednokratnog primaoca).
 
- 
+
+```javascript
+ db.getCollection('transactions').aggregate([
+  {
+    $lookup: {
+      from: "risk_profiles",
+      localField: "_id",
+      foreignField: "_id",
+      as: "risk_data"
+    }
+  },
+  { $unwind: "$risk_data" },
+
+  {
+    $group: {
+      _id: "$sender.nameOrig",
+      total_transactions: { $sum: 1 },
+      fraud_count: { $sum: "$risk_data.fraud_label.isFraud" },
+      unique_receivers: { $addToSet: "$receiver.nameDest" },
+      risk_levels: { $push: "$risk_data.risk.risk_level" }
+    }
+  },
+
+  {
+    $match: {
+      fraud_count: { $gt: 0 }
+    }
+  },
+
+  {
+    $addFields: {
+      unique_receivers_count: { $size: "$unique_receivers" },
+      fraud_rate_pct: {
+        $round: [
+          { $multiply: [{ $divide: ["$fraud_count", "$total_transactions"] }, 100] },
+          2
+        ]
+      },
+      dominant_risk_level: { $first: "$risk_levels" }
+    }
+  },
+
+  { $sort: { fraud_count: -1, total_transactions: -1 } },
+  { $limit: 20 },
+
+  {
+    $project: {
+      _id: 0,
+      sender: "$_id",
+      total_transactions: 1,
+      fraud_count: 1,
+      fraud_rate_pct: 1,
+      unique_receivers_count: 1, 
+      dominant_risk_level: 1
+    }
+  }
+], { allowDiskUse: true })
+```
+
+
+### Rezultat upita: 
+
+![](treciupitc.png)
+
+***Vreme izvrsavanja:*** 15 min 35 sek
+
+Rezultati ovog upita nedvosmisleno pokazuju da napadači ne koriste čiste, jednokratne (burner) naloge na strani pošiljalaca, već se oslanjaju na specifičnu "Test-then-Strike" taktiku. Koriste dve transakcije kao šablon, gde prvo izvrše jednu legitimnu transakciju kako bi testirali račun i odgovor sistema, a tek onda šalju lažnu transakciju na jednokratni račun.
