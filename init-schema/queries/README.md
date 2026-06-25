@@ -145,6 +145,8 @@ db.getCollection('transactions').aggregate([
 
 ```
 
+### Rezultat upita:
+
 ![](drugiupit.png)
 
 Vreme izvrsavanja: 23 min 56 sek
