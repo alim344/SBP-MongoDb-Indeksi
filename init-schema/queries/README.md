@@ -77,7 +77,7 @@ db.getCollection('transactions').aggregate([
 
 ![](prviupit.png)
 
-Vreme izvrsavanja: 14 min 26 sek
+***Vreme izvrsavanja:*** 14 min 26 sek
 
 Transfer - customer je najopasniji tip. Ima 4097 prevara na 532000 transkacija. Cash-Out ima najveci broj prevara ali ima i najveci broj transakcija pa je fraud_rate mnogo nizi. Po avg_risk_score vidimo da sistem mnogo bolje detektuje TRANSFER prevare nego CASH_OUT prevare.
 
@@ -149,14 +149,14 @@ db.getCollection('transactions').aggregate([
 
 ![](drugiupit.png)
 
-Vreme izvrsavanja: 23 min 56 sek
+***Vreme izvrsavanja:*** 23 min 56 sek
 
 Najveci broj "sumnjivih" isplata je tokom dana (popodne). Ujutru i popodne dominira scenario suspicious_caschout. Nocu dominira scenario original_fraud_cashout (od 294 flaga - 242 su dokazane prevare). Prosecan iznos sumnjivih transakcija nocu je mnogo veci od proseka sistema.
 
 
 ## Treci upit
 
-### 3a
+### 3A
 Koji primaoci su primili novac od najvećeg broja različitih pošiljalaca, koliki je procenat tih transakcija označen kao prevara i koji risk_level dominira među njima?
 
 ```javascript
@@ -255,6 +255,114 @@ db.getCollection('transactions').aggregate([
 
 ![](treciupita.png)
 
-Vreme izvrsavanja: 17 min 54 sek
+***Vreme izvrsavanja:*** 17 min 54 sek
 
-Najaktivniji primalac je C1286084959, primio je novac od 113 različitih pošiljalaca kroz 113 transakcija. On je oznacen kao medium rizik, isključivo zbog ekstremne frekvencije transakcija koja ga izdvaja iz proseka.
+Najaktivniji primalac je C1286084959, primio je novac od 113 različitih pošiljalaca kroz 113 transakcija. On je oznacen kao medium rizik, isključivo zbog ekstremne frekvencije transakcija koja ga izdvaja iz proseka. 
+
+### 3B
+
+Po prethodnom upitu vidimo da se prevaranti ne kriju iza računa koji imaju veliki broj prijema transakcija. Želimo da otkrijemo koji korisnici vrše najvise prevara. Pretrazujemo kakvi primaoci imaju dokazane prevare i HIGH nivo rizika.
+
+
+```javascript
+db.getCollection('transactions').aggregate([
+  {
+    $lookup: {
+      from: "risk_profiles",
+      localField: "_id",
+      foreignField: "_id",
+      as: "risk_data"
+    }
+  },
+  { $unwind: "$risk_data" },
+
+  {
+    $group: {
+      _id: {
+        receiver: "$receiver.nameDest",
+        risk_lvl: "$risk_data.risk.risk_level"
+      },
+      unique_senders: { $addToSet: "$sender.nameOrig" },
+      total_tx_for_risk: { $sum: 1 },
+      fraud_count_for_risk: { $sum: "$risk_data.fraud_label.isFraud" }
+    }
+  },
+
+  { $sort: { total_tx_for_risk: -1 } },
+
+  {
+    $group: {
+      _id: "$_id.receiver",
+      dominant_risk_level: { $first: "$_id.risk_lvl" },
+      all_unique_senders: { $addToSet: "$unique_senders" },
+      total_transactions: { $sum: "$total_tx_for_risk" },
+      total_fraud_count: { $sum: "$fraud_count_for_risk" }
+    }
+  },
+
+
+  {
+    $match: {
+      total_fraud_count: { $gt: 0 },
+      dominant_risk_level: { $regex: /^high$/i } 
+    }
+  },
+
+  
+  {
+    $addFields: {
+      merged_senders: {
+        $reduce: {
+          input: "$all_unique_senders",
+          initialValue: [],
+          in: { $setUnion: ["$$value", "$$this"] }
+        }
+      }
+    }
+  },
+
+  {
+    $addFields: {
+      unique_senders_count: { $size: "$merged_senders" },
+      fraud_rate_pct: {
+        $round: [
+          { $multiply: [{ $divide: ["$total_fraud_count", "$total_transactions"] }, 100] },
+          2
+        ]
+      }
+    }
+  },
+
+  { $sort: { total_fraud_count: -1 } },
+  { $limit: 20 },
+
+  {
+    $project: {
+      _id: 0,
+      receiver: "$_id",
+      total_fraud_count: 1,
+      total_transactions: 1,
+      fraud_rate_pct: 1,
+      unique_senders_count: 1,
+      dominant_risk_level: 1
+    }
+  }
+], { allowDiskUse: true })
+```
+
+### Rezultat upita: 
+
+![](treciupitb.png)
+
+***Vreme izvrsavanja:*** 16 min 24 sek
+
+Svi nalozi na crnoj listi imaju tačno **1 transakciju, 1 pošiljaoca i 1 prevaru (100% fraud rate)**. Ovo dokazuje masovno korišćenje jednokratnih (*burner*) računa primalaca koji se odmah gase nakon izvlačenja novca.
+
+
+### 3C
+
+Prethodne analize su bile fokusirane isključivo na primaoce, što nam je otkrilo da su računi koji primaju sredstva iz prevara u najvećem broju slučajeva jednokratni nalozi. Međutim, ostalo je otvoreno ključno pitanje o ponašanju napadača: Da li iza ovih incidenata stoje serijski napadaci koji sa jednog lažnog naloga šalju novac na više različitih jednokratnih računa, ili su i sami pošiljaoci jednokratni?
+
+ **Cilj upita:** Grupisanje podataka isključivo po pošiljaocu, uz praćenje broja jedinstvenih primalaca, kako bi se precizno utvrdilo da li u sistemu postoji obrazac povezanih, ponovljenih napada sa iste tačke, ili je u pitanju strogi model (jednokratni pošiljalac na jednokratnog primaoca).
+
+ 
