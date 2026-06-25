@@ -26,8 +26,10 @@ pip install tqdm
 
 Ispod je prikazana trenutna struktura foldera i datoteka unutar projekta:
 
+
 ![Struktura Projekta](strukturadirektorijuma.png)
 
+Baza podataka: Skripta očekuje da je MongoDB pokrenut na localhost:27017. Kreirana baza imaće naziv fraud_detection
 
 
 ### 3. Sledeci koraci
