@@ -1,5 +1,4 @@
 # Analiza i Detekcija Prevara u Mobilnom Bankarstvu
-**Student:** Mila Budimirović IN22/2021  
 **Uloga:** Fraud Analyst (Analitičar prevara)
 
 Ovaj projekat se bavi analizom sintetičkog skupa podataka mobilnih novčanih transakcija u cilju detekcije i prevencije prevara.
