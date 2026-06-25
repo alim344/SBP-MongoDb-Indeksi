@@ -2,7 +2,7 @@
 **Student:** Mila Budimirović IN22/2021  
 **Uloga:** Fraud Analyst (Analitičar prevara)
 
-Ovaj projekat se bavi analizom sintetičkog skupa podataka mobilnih novčanih transakcija u cilju detekcije i prevencije prevara. Projekat je zasnovan na zvaničnoj prezentaciji **"ANALIZA I DETEKCIJA PREVARA U MOBILNOM BANKARSTVU (1) (1).pptx"**.
+Ovaj projekat se bavi analizom sintetičkog skupa podataka mobilnih novčanih transakcija u cilju detekcije i prevencije prevara.
 
 ---
 
@@ -15,7 +15,7 @@ Pre pokretanja skripte import_data.py, potrebno je obezbediti podatke sa Kaggle-
 * **Uputstvo:** Sve preuzete `.csv` datoteke smestite u folder `csv_files/` unutar projekta.
 
 ### Potrebne Python biblioteke
-Instalirajte zavisnosti pokretanjem sledećih komandi u terminalu:
+Instalirajte biblioteke pokretanjem sledećih komandi u terminalu:
 
 ```bash
 pip install pandas
