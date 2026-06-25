@@ -20,3 +20,9 @@ Instalirajte biblioteke pokretanjem sledećih komandi u terminalu:
 ```bash
 pip install pandas
 pip install pymongo
+
+## 📂 2. Struktura Direktorijuma
+
+Ispod je prikazana trenutna struktura foldera i datoteka unutar projekta:
+
+![Struktura Projekta](strukturadirektorijuma.png)
