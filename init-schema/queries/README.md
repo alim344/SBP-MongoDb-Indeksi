@@ -432,3 +432,94 @@ Prethodne analize su bile fokusirane isključivo na primaoce, što nam je otkril
 ***Vreme izvrsavanja:*** 15 min 35 sek
 
 Rezultati ovog upita nedvosmisleno pokazuju da napadači ne koriste čiste, jednokratne (burner) naloge na strani pošiljalaca, već se oslanjaju na specifičnu "Test-then-Strike" taktiku. Koriste dve transakcije kao šablon, gde prvo izvrše jednu legitimnu transakciju kako bi testirali račun i odgovor sistema, a tek onda šalju lažnu transakciju na jednokratni račun.
+
+
+## Cetvrti upit
+
+Koje kombinacije rizičnih oznaka se najčešće pojavljuju kod kvarnih transakcija i u kom periodu dana se te transakcije najčešće dešavaju? Koliki je avg risk score i avg suma novca svake kombinacije?
+
+
+```javascript
+db.getCollection('risk_profiles').aggregate([
+  { $match: { "fraud_label.isFraud": 1 } },
+  
+  {
+    $lookup: {
+      from: "transactions",
+      localField: "_id",
+      foreignField: "_id",
+      as: "tx_data"
+    }
+  },
+  { $unwind: "$tx_data" },
+  
+  {
+    $addFields: {
+      active_flags: {
+        $filter: {
+          input: [
+            { $cond: [{ $eq: ["$risk.flags.high_amount_flag", 1] }, "high_amount", "$$REMOVE"] },
+            { $cond: [{ $eq: ["$risk.flags.high_velocity_flag", 1] }, "high_velocity", "$$REMOVE"] },
+            { $cond: [{ $eq: ["$risk.flags.new_receiver_flag", 1] }, "new_receiver", "$$REMOVE"] },
+            { $cond: [{ $eq: ["$risk.flags.many_to_one_receiver_flag", 1] }, "many_to_one", "$$REMOVE"] },
+            { $cond: [{ $eq: ["$risk.flags.suspicious_cashout_flag", 1] }, "suspicious_cashout", "$$REMOVE"] },
+            { $cond: [{ $eq: ["$risk.flags.large_transfer_flag", 1] }, "large_transfer", "$$REMOVE"] }
+          ],
+          as: "f",
+          cond: { $ne: ["$$f", null] }
+        }
+      }
+    }
+  },
+
+  {
+    $group: {
+      _id: {
+        flags: "$active_flags",
+        period: "$tx_data.temporal.period_of_day"
+      },
+      count: { $sum: 1 },
+      avg_risk: { $avg: "$risk.risk_score_rule_based" },
+      avg_money: { $avg: "$tx_data.amount" } 
+    }
+  },
+
+  { $sort: { "_id.flags": 1, "count": -1 } },
+
+  {
+    $group: {
+      _id: "$_id.flags",
+      peak_period: { $first: "$_id.period" },
+      fraud_count: { $first: "$count" },
+      avgr_risk_score: { $first: "$avg_risk" },
+      avg_fraud_amount: { $first: "$avg_money" } 
+    }
+  },
+
+  { $sort: { fraud_count: -1 } },
+  { $limit: 15 },
+  
+  {
+    $project: {
+      _id: 0,
+      flag_combination: "$_id",
+      peak_period: 1,
+      fraud_count: 1,
+     avg_risk_score: { $round: ["$avgr_risk_score", 2] },
+    avg_amount_stolen: { $round: ["$avg_fraud_amount", 2] }
+    }
+  }
+], { allowDiskUse: true })
+```
+
+### Rezultat upita: 
+
+![](cetvrtiupit.png)
+
+
+***Vreme izvrsavanja:*** 13 sek
+
+
+Što je kombinacija flegova složenija, to je prosečan rizik drastično veći. Pojedinačni flegovi imaju rizik 0.0, dok kombinacije sa 3 ili 4 flega imaju prosečan rizik preko 50.0 i 70.0, što pokazuje da sistem odlično prepoznaje udružene flagove.
+
+Popodne imamo najvise prevara, dok uveče imamo specifičnije i složenije napade. Iako su prevare sa samo jednim flegom (new_receiver) najbrojnije (1,162), one odnose manje iznose (283 000). Prava finansijska šteta leži u trostrukim kombinacijama flegova koje uključuju high_amount, gde prosečan ukradeni iznos skače na blizu 5 miliona po transakciji.
