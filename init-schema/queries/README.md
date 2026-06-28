@@ -523,3 +523,103 @@ db.getCollection('risk_profiles').aggregate([
 Što je kombinacija flegova složenija, to je prosečan rizik drastično veći. Pojedinačni flegovi imaju rizik 0.0, dok kombinacije sa 3 ili 4 flega imaju prosečan rizik preko 50.0 i 70.0, što pokazuje da sistem odlično prepoznaje udružene flagove.
 
 Popodne imamo najvise prevara, dok uveče imamo specifičnije i složenije napade. Iako su prevare sa samo jednim flegom (new_receiver) najbrojnije (1,162), one odnose manje iznose (283 000). Prava finansijska šteta leži u trostrukim kombinacijama flegova koje uključuju high_amount, gde prosečan ukradeni iznos skače na blizu 5 miliona po transakciji.
+
+
+## Peti upit
+
+Koliki procenat transakcija gde je stanje pošiljaoca palo na nulu nakon transakcije je označen kao prevara, grupisano po tipu transakcije i nivou rizika, i kako se prosečan risk_score razlikuje između originalnih PaySim prevara i engineered scenarija?
+
+```javascript
+db.getCollection('transactions').aggregate([
+  {
+    $match: {
+      "balance_analysis.is_sender_balance_zero_after": 1
+    }
+  },
+
+  {
+    $lookup: {
+      from: "risk_profiles",
+      localField: "_id",
+      foreignField: "_id",
+      as: "risk_data"
+    }
+  },
+
+  { $unwind: "$risk_data" },
+
+  {
+    $group: {
+      _id: {
+        type: "$type",
+        risk_level: "$risk_data.risk.risk_level"
+      },
+      total: { $sum: 1 },
+      fraud_count: { $sum: "$risk_data.fraud_label.isFraud" },
+      avg_risk_score: { $avg: "$risk_data.risk.risk_score_rule_based" },
+      avg_score_original: {
+        $avg: {
+          $cond: [
+            { $eq: ["$risk_data.fraud_label.is_original_fraud_label", 1] },
+            "$risk_data.risk.risk_score_rule_based",
+            null
+          ]
+        }
+      },
+      avg_score_engineered: {
+        $avg: {
+          $cond: [
+            { $eq: ["$risk_data.fraud_label.is_engineered_scenario", 1] },
+            "$risk_data.risk.risk_score_rule_based",
+            null
+          ]
+        }
+      }
+    }
+  },
+
+  {
+    $addFields: {
+      fraud_rate_pct: {
+        $round: [
+          { $multiply: [{ $divide: ["$fraud_count", "$total"] }, 100] },
+          2
+        ]
+      },
+      avg_risk_score: { $round: ["$avg_risk_score", 2] },
+      avg_score_original: { $round: ["$avg_score_original", 2] },
+      avg_score_engineered: { $round: ["$avg_score_engineered", 2] }
+    }
+  },
+
+  { $sort: { fraud_rate_pct: -1 } },
+
+  {
+    $project: {
+      _id: 0,
+      transaction_type: "$_id.type",
+      risk_level: "$_id.risk_level",
+      total: 1,
+      fraud_count: 1,
+      fraud_rate_pct: 1,
+      avg_risk_score: 1,
+      avg_score_original_fraud: "$avg_score_original",
+      avg_score_engineered_fraud: "$avg_score_engineered"
+    }
+  }
+
+], { allowDiskUse: true })
+
+```
+
+
+
+### Rezultat upita: 
+
+![](petiupit.png)
+
+
+***Vreme izvrsavanja:*** 8 min
+
+
+Kada stanje računa pošiljaoca padne na nulu, najviše prevara se dešava kod CASH_OUT transakcija visokog rizika, gde stopa uspešnosti ulova iznosi čak 75%. Tipovi transakcija poput DEBIT i PAYMENT imaju stopu od 0%, što znači da je pražnjenje računa kod njih potpuno legitiman proces.
