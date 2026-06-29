@@ -200,3 +200,104 @@ db.getCollection('receivers_summary').aggregate([
 ![](upit3a.png)
 
 ***Vreme izvrsavanja:*** 0.019 sek
+
+
+
+### 3B
+
+Po prethodnom upitu vidimo da se prevaranti ne kriju iza računa koji imaju veliki broj prijema transakcija. Želimo da otkrijemo koji korisnici vrše najvise prevara. Pretrazujemo kakvi primaoci imaju dokazane prevare i HIGH nivo rizika.
+
+```javascript
+    
+
+db.getCollection('receivers_summary').aggregate([
+  { $match: { fraud_count: { $gt: 0 } } },
+
+  {
+    $lookup: {
+      from: "transactions_v2",
+      localField: "_id",
+      foreignField: "receiver.nameDest",
+      as: "raw_transactions"
+    }
+  },
+  { $unwind: "$raw_transactions" },
+
+  {
+    $group: {
+      _id: {
+        receiver: "$_id",
+        risk_lvl: "$raw_transactions.risk.risk_level"
+      },
+      unique_senders_count: { $first: "$unique_senders_count" },
+      total_transactions: { $first: "$total_transactions" },
+      fraud_count: { $first: "$fraud_count" },
+      total_tx_for_risk: { $sum: 1 } 
+    }
+  },
+
+  { $sort: { total_tx_for_risk: -1 } },
+
+  {
+    $group: {
+      _id: "$_id.receiver",
+      dominant_risk_level: { $first: "$_id.risk_lvl" },
+      unique_senders_count: { $first: "$unique_senders_count" },
+      total_transactions: { $first: "$total_transactions" },
+      total_fraud_count: { $first: "$fraud_count" }
+    }
+  },
+
+  {
+    $match: {
+      dominant_risk_level: { $regex: /^high$/i }
+    }
+  },
+
+  {
+    $addFields: {
+      fraud_rate_pct: {
+        $round: [
+          {
+            $multiply: [
+              {
+                $cond: [
+                  { $eq: ["$total_transactions", 0] },
+                  0,
+                  { $divide: ["$total_fraud_count", "$total_transactions"] }
+                ]
+              },
+              100
+            ]
+          },
+          2
+        ]
+      }
+    }
+  },
+
+  { $sort: { total_fraud_count: -1 } },
+  
+  { $limit: 20 },
+
+  {
+    $project: {
+      _id: 0,
+      receiver: "$_id",
+      total_fraud_count: 1,
+      total_transactions: 1,
+      fraud_rate_pct: 1,
+      unique_senders_count: 1,
+      dominant_risk_level: 1
+    }
+  }
+])
+
+```
+
+
+### Rezultat upita: 
+
+![](upit3b.png)
+
+***Vreme izvrsavanja:*** 12 sek
