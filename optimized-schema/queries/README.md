@@ -199,7 +199,7 @@ db.getCollection('receivers_summary').aggregate([
 
 ![](upit3a.png)
 
-***Vreme izvrsavanja:*** 0.019 sek
+***Vreme izvrsavanja:*** vise od 8 min bez indeksa, 0.019 sek sa indeksom
 
 
 
@@ -300,4 +300,15 @@ db.getCollection('receivers_summary').aggregate([
 
 ![](upit3b.png)
 
-***Vreme izvrsavanja:*** 12 sek
+***Vreme izvrsavanja:*** 12 sek sa indeksom
+
+### 3C
+
+ **Cilj upita:** Grupisanje podataka isključivo po pošiljaocu, uz praćenje broja jedinstvenih primalaca, kako bi se precizno utvrdilo da li u sistemu postoji obrazac povezanih, ponovljenih napada sa iste tačke, ili je u pitanju strogi model (jednokratni pošiljalac na jednokratnog primaoca).
+
+
+ ***Vreme izvrsavanja:*** Vece nego kod neoptimizovane šeme
+
+ mali dokumenti + $lookup po _id  <  veliki dokumenti bez $lookup
+ moze se resiti pravljenjem nove kolekcije za sender_summary kao što smo napravili gore za reciever.
+
