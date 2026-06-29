@@ -16,7 +16,7 @@ pip install pandas
 pip install pymongo
 pip install tqdm
 ```
-1. Pokrenite skriptu `import_v2.py`. (podaci su vec ocisceni, samo ubacujemo u bazu)
+1. Pokrenite skriptu `import_v2.py` i skriptu `import_collection2.py` (podaci su vec ocisceni, samo ubacujemo u bazu)
 2. Sačekajte da se podaci učitaju u MongoDB bazu.
 3. Indeksi se dodaju nad novom kolekcijom 
 
