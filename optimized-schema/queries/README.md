@@ -105,3 +105,98 @@ db.getCollection('transactions_v2').aggregate([
 ![](upit2.png)
 
 ***Vreme izvrsavanja:*** 16 sek bez indeksa, 0.7 sek sa indeksom 
+
+
+## Treci upit
+
+### 3A
+Koji primaoci su primili novac od najvećeg broja različitih pošiljalaca, koliki je procenat tih transakcija označen kao prevara i koji risk_level dominira među njima? (pravimo upit nad novom kolekcijom)
+
+```javascript
+
+db.getCollection('receivers_summary').aggregate([
+  { $sort: { unique_senders_count: -1 } },
+
+  { $limit: 20 },
+
+  {
+    $lookup: {
+      from: "transactions_v2",
+      localField: "_id",                  
+      foreignField: "receiver.nameDest",  
+      as: "raw_transactions"
+    }
+  },
+  { $unwind: "$raw_transactions" },
+
+  {
+    $group: {
+      _id: {
+        receiver: "$_id",
+        risk_lvl: "$raw_transactions.risk.risk_level"
+      },
+      unique_senders_count: { $first: "$unique_senders_count" },
+      total_transactions: { $first: "$total_transactions" },
+      fraud_count: { $first: "$fraud_count" },
+      risk_lvl_count: { $sum: 1 } 
+    }
+  },
+
+  { $sort: { "_id.receiver": 1, risk_lvl_count: -1 } },
+
+  {
+    $group: {
+      _id: "$_id.receiver",
+      unique_senders_count: { $first: "$unique_senders_count" },
+      total_transactions: { $first: "$total_transactions" },
+      fraud_count: { $first: "$fraud_count" },
+      dominant_risk_level: { $first: "$_id.risk_lvl" }
+    }
+  },
+
+  {
+    $addFields: {
+      fraud_rate_pct: {
+        $round: [
+          {
+            $multiply: [
+              {
+                $cond: [
+                  { $eq: ["$total_transactions", 0] },
+                  0,
+                  { $divide: ["$fraud_count", "$total_transactions"] }
+                ]
+              },
+              100
+            ]
+          },
+          2
+        ]
+      }
+    }
+  },
+
+  { $sort: { unique_senders_count: -1 } },
+
+  
+  {
+    $project: {
+      _id: 0,
+      receiver: "$_id",
+      unique_senders_count: 1,
+      total_transactions: 1,
+      fraud_count: 1,
+      fraud_rate_pct: 1,
+      dominant_risk_level: 1
+    }
+  }
+])
+
+```
+
+
+### Rezultat upita:
+
+![](upit3a.png)
+
+***Vreme izvrsavanja:*** 0.019 sek
