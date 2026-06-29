@@ -8,3 +8,5 @@
 ![](collection1.png)
 
 Kolekcija sadrži podatke neophodne za izvršavanje osmišljenih upita bez lookupa i unwind funkcija. 
+
+U okviru poddokumenta risk, umesto inicijalnog čuvanja 6 pojedinačnih flagova (gde bi se za svaku transakciju čuvale vrednosti 0 ili 1), primenjen je šablon atributa. Svi aktivni indikatori prevare preformulisani su u dinamički niz stringova pod nazivom active_flags.

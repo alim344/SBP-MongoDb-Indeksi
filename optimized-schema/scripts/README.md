@@ -16,6 +16,18 @@ pip install pandas
 pip install pymongo
 pip install tqdm
 ```
- Pokrenite skriptu `import_v2.py`. (podaci su vec ocisceni, samo ubacujemo u bazu)
- Sačekajte da se podaci učitaju u MongoDB bazu.
+1. Pokrenite skriptu `import_v2.py`. (podaci su vec ocisceni, samo ubacujemo u bazu)
+2. Sačekajte da se podaci učitaju u MongoDB bazu.
+3. Indeksi se dodaju nad novom kolekcijom 
 
+
+```javascript
+   
+db.getCollection('transactions_v2').createIndex({ "sender_receiver_relation.is_new_receiver_for_sender": 1 })
+
+
+db.getCollection('transactions_v2').createIndex({ "fraud_label.isFraud": 1, "risk.risk_level": 1 })
+
+
+db.getCollection('transactions_v2').createIndex({ "balance_analysis.is_sender_balance_zero_after": 1, "type": 1 })
+```

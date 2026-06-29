@@ -4,7 +4,6 @@ from pymongo import MongoClient, InsertOne
 from pymongo.errors import BulkWriteError
 from tqdm import tqdm
 
-
 CONNECTION_STRING = "mongodb://localhost:27017/"
 DATABASE_NAME = "fraud_detection"
 CSV_DIR = Path("./csv_files")
@@ -33,6 +32,23 @@ def cast(value):
 
 def build_doc(tx, temp, sr, behav, net, bal, risk, fraud):
     tid = tx["transaction_id"]
+
+    # --- ŠABLON ATRIBUTA (Attribute Pattern) ---
+    # Mapiramo nazive flegova iz CSV-a i proveravamo koji su aktivni (imaju vrednost 1)
+    flag_mappings = {
+        "high_amount_flag": "high_amount",
+        "high_velocity_flag": "high_velocity",
+        "new_receiver_flag": "new_receiver",
+        "many_to_one_receiver_flag": "many_to_one",
+        "suspicious_cashout_flag": "suspicious_cashout",
+        "large_transfer_flag": "large_transfer"
+    }
+    
+    active_flags = []
+    for csv_key, clean_name in flag_mappings.items():
+        if cast(risk.get(csv_key)) == 1:
+            active_flags.append(clean_name)
+    # -------------------------------------------
 
     doc = {
         "_id": tid,
@@ -97,14 +113,7 @@ def build_doc(tx, temp, sr, behav, net, bal, risk, fraud):
             "risk_score_rule_based": cast(risk["risk_score_rule_based"]),
             "risk_level": risk["risk_level"],
             "risk_reason_count": cast(risk["risk_reason_count"]),
-            "flags": {
-                "high_amount_flag": cast(risk["high_amount_flag"]),
-                "high_velocity_flag": cast(risk["high_velocity_flag"]),
-                "new_receiver_flag": cast(risk["new_receiver_flag"]),
-                "many_to_one_receiver_flag": cast(risk["many_to_one_receiver_flag"]),
-                "suspicious_cashout_flag": cast(risk["suspicious_cashout_flag"]),
-                "large_transfer_flag": cast(risk["large_transfer_flag"]),
-            }
+            "active_flags": active_flags  # <-- Novi niz koji menja stari objekat sa 6 flegova
         },
         "fraud_label": {
             "isFraud": cast(tx["isFraud"]),
