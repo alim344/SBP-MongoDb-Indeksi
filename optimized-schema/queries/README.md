@@ -310,5 +310,66 @@ db.getCollection('receivers_summary').aggregate([
  ***Vreme izvrsavanja:*** Vece nego kod neoptimizovane šeme
 
  mali dokumenti + $lookup po _id  <  veliki dokumenti bez $lookup
+
+
  moze se resiti pravljenjem nove kolekcije za sender_summary kao što smo napravili gore za reciever.
 
+ 
+## Cetvrti upit
+
+Koje kombinacije rizičnih oznaka se najčešće pojavljuju kod kvarnih transakcija i u kom periodu dana se te transakcije najčešće dešavaju? Koliki je avg risk score i avg suma novca svake kombinacije?
+
+
+```javascript
+db.getCollection('transactions_v2').aggregate([
+  // samo fraud transakcije
+  { $match: { "fraud_label.isFraud": 1 } },
+
+  // active_flags vec postoji u dokumentu, preskacamo $addFields
+  {
+    $group: {
+      _id: {
+        flags: "$risk.active_flags",
+        period: "$temporal.period_of_day"
+      },
+      count: { $sum: 1 },
+      avg_risk: { $avg: "$risk.risk_score_rule_based" },
+      avg_money: { $avg: "$amount" }
+    }
+  },
+
+  { $sort: { "_id.flags": 1, count: -1 } },
+
+  {
+    $group: {
+      _id: "$_id.flags",
+      peak_period: { $first: "$_id.period" },
+      fraud_count: { $first: "$count" },
+      avgr_risk_score: { $first: "$avg_risk" },
+      avg_fraud_amount: { $first: "$avg_money" }
+    }
+  },
+
+  { $sort: { fraud_count: -1 } },
+  { $limit: 15 },
+
+  {
+    $project: {
+      _id: 0,
+      flag_combination: "$_id",
+      peak_period: 1,
+      fraud_count: 1,
+      avg_risk_score: { $round: ["$avgr_risk_score", 2] },
+      avg_amount_stolen: { $round: ["$avg_fraud_amount", 2] }
+    }
+  }
+], { allowDiskUse: true })
+```
+
+
+### Rezultat upita: 
+
+![](upit4.png)
+
+
+***Vreme izvrsavanja:*** više od neoptimizovanog bez indeksa (13 sek), 0,02 sek sa indeksom 

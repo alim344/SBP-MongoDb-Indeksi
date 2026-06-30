@@ -29,5 +29,5 @@ db.transactions_v2.createIndex({ "risk.active_flags": 1 })
 db.transactions_v2.createIndex({ "receiver.nameDest": 1 })
 
 
-db.getCollection('transactions_v2').createIndex({ "balance_analysis.is_sender_balance_zero_after": 1, "type": 1 })
+db.transactions_v2.createIndex({ "fraud_label.isFraud": 1 })
 ```
