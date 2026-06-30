@@ -59,7 +59,6 @@ db.getCollection('transactions_v2').aggregate([
     }
   },
   
-
   {
     $group: {
       _id: {
@@ -113,6 +112,7 @@ db.getCollection('transactions_v2').aggregate([
 Koji primaoci su primili novac od najvećeg broja različitih pošiljalaca, koliki je procenat tih transakcija označen kao prevara i koji risk_level dominira među njima? (pravimo upit nad novom kolekcijom)
 
 ```javascript
+
 
 db.getCollection('receivers_summary').aggregate([
   { $sort: { unique_senders_count: -1 } },
@@ -191,6 +191,7 @@ db.getCollection('receivers_summary').aggregate([
     }
   }
 ])
+
 
 ```
 
@@ -322,10 +323,8 @@ Koje kombinacije rizičnih oznaka se najčešće pojavljuju kod kvarnih transakc
 
 ```javascript
 db.getCollection('transactions_v2').aggregate([
-  // samo fraud transakcije
   { $match: { "fraud_label.isFraud": 1 } },
 
-  // active_flags vec postoji u dokumentu, preskacamo $addFields
   {
     $group: {
       _id: {
@@ -373,3 +372,80 @@ db.getCollection('transactions_v2').aggregate([
 
 
 ***Vreme izvrsavanja:*** više od neoptimizovanog bez indeksa (13 sek), 0,02 sek sa indeksom 
+
+
+
+## Peti upit
+
+Koliki procenat transakcija gde je stanje pošiljaoca palo na nulu nakon transakcije je označen kao prevara, grupisano po tipu transakcije i nivou rizika, i kako se prosečan risk_score razlikuje između originalnih PaySim prevara i engineered scenarija?
+
+```javascript
+db.getCollection('transactions_v2').aggregate([
+  { $match: { "balance_analysis.is_sender_balance_zero_after": 1 } },
+  {
+    $group: {
+      _id: {
+        type: "$type",
+        risk_level: "$risk.risk_level"
+      },
+      total: { $sum: 1 },
+      fraud_count: { $sum: "$fraud_label.isFraud" },
+      avg_risk_score: { $avg: "$risk.risk_score_rule_based" },
+      avg_score_original: {
+        $avg: {
+          $cond: [
+            { $eq: ["$fraud_label.is_original_fraud_label", 1] },
+            "$risk.risk_score_rule_based",
+            null
+          ]
+        }
+      },
+      avg_score_engineered: {
+        $avg: {
+          $cond: [
+            { $eq: ["$fraud_label.is_engineered_scenario", 1] },
+            "$risk.risk_score_rule_based",
+            null
+          ]
+        }
+      }
+    }
+  },
+  {
+    $addFields: {
+      fraud_rate_pct: {
+        $round: [
+          { $multiply: [{ $divide: ["$fraud_count", "$total"] }, 100] },
+          2
+        ]
+      },
+      avg_risk_score: { $round: ["$avg_risk_score", 2] },
+      avg_score_original: { $round: ["$avg_score_original", 2] },
+      avg_score_engineered: { $round: ["$avg_score_engineered", 2] }
+    }
+  },
+  { $sort: { fraud_rate_pct: -1 } },
+  {
+    $project: {
+      _id: 0,
+      transaction_type: "$_id.type",
+      risk_level: "$_id.risk_level",
+      total: 1,
+      fraud_count: 1,
+      fraud_rate_pct: 1,
+      avg_risk_score: 1,
+      avg_score_original_fraud: "$avg_score_original",
+      avg_score_engineered_fraud: "$avg_score_engineered"
+    }
+  }
+], { allowDiskUse: true })
+```
+
+
+
+### Rezultat upita: 
+
+![](upit5.png)
+
+
+***Vreme izvrsavanja:*** 38 sek
