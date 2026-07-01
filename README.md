@@ -9,15 +9,16 @@ Autor: Mila Budimirović IN 22/2021
 Podaci su uzeti sa sajta Kaggle. Naziv data seta je:  Mobile Money Fraud Detection Dataset. 
 Link za dataset: 
 https://www.kaggle.com/datasets/harrachimustapha/mobile-money-fraud-detection-dataset
+
 Ukupna veličina dataseta je 2.7 GB. Sadrži 6 miliona transakcija. 
 
 Skup podataka je organizovan u 8 csv fajlova. Osnovna datoteka sadrži originalne informacije o transakcijama, dok dodatne datoteke pružaju informacije o ponašanju pošiljaoca, interakcije pošiljaoca i primaoca, analizu mreže, bodovanje rizika i obeležavanje scenarija prevare. 
 
 ## O realizaciji projekta
 
-inicijalna šema baze podataka se nalazi u direktorijumu [](init-schema/schema/README.md) 
+inicijalna šema baze podataka se nalazi u direktorijumu [init-schema](init-schema/schema/README.md) 
 
-Optimizovana šema se nalazi u direktorijumu [](optimized-schema/schema/README.md)
+Optimizovana šema se nalazi u direktorijumu [optimized-schema](optimized-schema/schema/README.md)
 
 
 ### Upiti 
@@ -35,8 +36,13 @@ Optimizovana šema se nalazi u direktorijumu [](optimized-schema/schema/README.m
 
 ## Statistika i grafici 
 
-![Statistika o dokumentima](DocumentStatistics.png)
+### Statistika o dokumentima
 
-![Statistika o vremenu izvršavanja upita](TimeStatistics.png)
+![](DocumentStatistics.png)
+
+
+### Statistika o vremenu izvršavanja upita
+
+![](TimeStatistics.png)
 
 
