@@ -36,7 +36,7 @@ Optimizovana šema se nalazi u direktorijumu [optimized-schema](optimized-schema
 
 ## Statistika i grafici 
 
-### Statistika o dokumentima
+### Statistika o broju pregledanih dokumenata za svaki upit
 
 ![](DocumentStatistics.png)
 
