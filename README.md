@@ -16,7 +16,7 @@ Skup podataka je organizovan u 8 csv fajlova. Osnovna datoteka sadrži originaln
 
 ## O realizaciji projekta
 
-inicijalna šema baze podataka se nalazi u direktorijumu [init-schema](init-schema/schema/README.md) 
+Inicijalna šema baze podataka se nalazi u direktorijumu [init-schema](init-schema/schema/README.md) 
 
 Optimizovana šema se nalazi u direktorijumu [optimized-schema](optimized-schema/schema/README.md)
 
